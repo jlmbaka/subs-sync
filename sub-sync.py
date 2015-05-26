@@ -21,10 +21,6 @@ class Subtitle():
     A message can be on several lines.
     """
 
-    def to_datetime(self, time_str):
-        time_str = time_str.replace(',', '.')
-        return parser.parse(time_str)
-
     # def __init__(self, sequence_no, start, end, message):
     #     self.sequence_no = sequence_no
     #     self.start = self.to_datetime(start)
@@ -33,26 +29,24 @@ class Subtitle():
 
     def __init__(self, srt_item):
         self.sequence_no = int(srt_item[0])
-        self.start = self.to_datetime(srt_item[1])
-        self.end = self.to_datetime(srt_item[2])
+        self.start = to_datetime(srt_item[1])
+        self.end = to_datetime(srt_item[2])
         self.message = srt_item[3]
 
     def __str__(self):
+        timestamp_str = "{0:02d}:{1:02d}:{2:02d},{3:000d}"
 
         return '{0}\n{1} --> {2}\n{3}\n\n'.format(self.sequence_no,
-                                                "{0:02d}:{1:02d}:{2:02d},{3:000d}".format(self.start.hour,
-                                                                                     self.start.minute,
-                                                                                     self.start.second,
-                                                                                     self.start.microsecond//1000),
-                                                "{0:02d}:{1:02d}:{2:02d},{3:000d}".format(self.end.hour,
-                                                                                     self.end.minute,
-                                                                                     self.end.second,
-                                                                                     self.end.microsecond//1000),
-                                                self.message) #'hr:min:sec,millis
+            timestamp_str.format(self.start.hour, self.start.minute, self.start.second, self.start.microsecond//1000), 
+            timestamp_str.format(self.end.hour, self.end.minute, self.end.second, self.end.microsecond//1000), 
+            self.message)
 
     def __eq__(self, other):
-        return isinstance(other, Subtitle) and self.sequence_no == other.sequence_no and self.start == other.start and \
-               self.end == other.end and self.message == other.message
+        return isinstance(other, Subtitle) and \
+            self.sequence_no == other.sequence_no and \
+            self.start == other.start and \
+            self.end == other.end and \
+            self.message == other.message
 
     def add_time(self, timedelta):
         self.start += timedelta
@@ -61,6 +55,15 @@ class Subtitle():
     def subtract_time(self, timedelta):
         self.start -= timedelta
         self.start -= timedelta
+
+
+def to_datetime(time_str):
+    """
+    converts a string to a datetime object
+    :param time_str: time str
+    """
+    time_str = time_str.replace(',', '.')
+    return parser.parse(time_str)
 
 
 def read_srt_file(filename):
@@ -79,17 +82,6 @@ def read_srt_file(filename):
     return text
 
 
-def write_srt_file(filename, srt):
-    """
-    Writes a single srt object string representation to the given filename.
-    :param filename:
-    :param srt:
-    :return:
-    """
-    with open(filename, mode='a', encoding='utf-8') as srt_file:
-        srt_file.write(srt.__string__)
-
-
 def tokenise_srt_text(srt_file_text_content):
     return srt_file_text_content.strip().split('\n\n')
 
@@ -105,7 +97,10 @@ def compile_regex_pattern():
 
 
 def load_subtitles(srt_file):
-
+    """
+    :param srt_file:
+    "return: array of subltiles objects
+    """
     srt_file_text = read_srt_file(srt_file)
     srt_file_items = tokenise_srt_text(srt_file_text)
     pattern = compile_regex_pattern()
@@ -119,44 +114,65 @@ def load_subtitles(srt_file):
 
     return subtitles
 
-def write_to_file(filename, subtitles):
-    with open(filename, mode='a', encoding='utf-8') as srt_file:
+
+def write_to_file(dst_filename, subtitles):
+    """
+    :param filename:
+    :param subtitles:
+    """
+    with open(dst_filename, mode='a', encoding='utf-8') as srt_file:
         for item in subtitles:
             srt_file.writelines(str(item))
 
+
 if __name__ == '__main__':
 
-    # # source srt and destination srt
-    # src_srt = ""
-    # dst_srt = ""
+    ## source srt and destination srt
+    src_srt = ""
+    dst_srt = ""
+    delay = 0
 
-    # # Read arguments from the second position
-    # argv = sys.argv[1:]
+    ## Read arguments from the second position
+    argv = sys.argv[1:]
+    try:
+        # opts that require arguments must be followed by a colon (:) e.g. d:
+        opts, args = getopt.getopt(argv, "hs:d:D:", ["src=", "dst=", "delay="])
+        if len(opts) != 3: # require each arguments
+            print("sub-sync.py -s <path_to_srt_file> -d <dst_srt> -D <delay_in_seconds>")
+            sys.exit(2)
+    except getopt.GetoptError:
+        # Error: print usage
+        print("sub-sync.py -s <path_to_srt_file> -d <dst_srt> -D <delay_in_seconds>")
+        sys.exit(2)
 
-    # target_directory = ""
+    for opt, arg in opts:
+        if opt == "-h":
+            # Help: print usage
+            print("sub-sync.py -s <path_to_srt_file> -d <dst_srt> -D <delay_in_seconds>")
+            sys.exit()
+        elif opt in ("-s", "--src"):
+            src_srt = arg
+        elif opt in ("-d", "--dst"):
+            dst_srt = arg
+        elif opt in ("-D", "--delay"):
+            try:
+                delay = int(arg)
+            except ValueError:
+                print("Delay has to be a number. You have entered {0}.".format(arg))
+                sys.exit(2)
 
-    # try:
-    #     # opts that require argument must be followed by a colon (:) e.g. d:
-    #     opts, args = getopt.getopt(argv, "hs:d:D", ["src=", "dst=", "delay="])
-    # except getopt.GetoptError:
-    #     # Error: print usage
-    #     print("sub-sync.py -s <path_to_srt_file> -d <dst_srt> -D <delay_in_milliseconds>")
-    #     sys.exit(2)
-
-    # for opt, arg in opts:
-    #     if opt == "-h":
-    #         # Help: print usage
-    #         print("sub-sync.py -s <path_to_srt_file> -d <dst_srt> -D <delay_in_milliseconds>")
-    #         sys.exit()
-    #     elif opt in ("-d", "--src"):
-    #         target_directory = arg
-    
-    # print("Directory is {0}".format(target_directory))
-
-    src_srt = r'C:\Users\jeanlouis.mbaka\Music\AAA\True.Detective.COMPLETE.S01.Season.1.720p.HDTV.x264-PublicHD\true.detective.s01e06.720p.hdtv.x264-2hd.srt'
-    dst_srt = r'C:\Users\jeanlouis.mbaka\Music\AAA\True.Detective.COMPLETE.S01.Season.1.720p.HDTV.x264-PublicHD\true.detective.s01e06.720p.hdtv.x264-2hd.shiffed.srt'
-
+    # Load src
     subtitles = load_subtitles(src_srt)
+
+    # Fix
     for sub in subtitles:
-        sub.add_time(timedelta(seconds=59))
+        sub.add_time(timedelta(seconds=delay))
+
+    # Write to dst
     write_to_file(dst_srt, subtitles)
+
+
+    if delay > 0:
+        print("Subtitles delayed by {0:.3f} seconds".format(abs(delay)))
+    else:
+        print("Subitles hasteneded by {0:.3f} seconds".format(abs(delay)))
